@@ -24,6 +24,8 @@ description: ""
   - [Memory](#memory)
   - [Network](#network)
   - [Approaches/Strategies](#approachesstrategies)
+  - [Debug](#debug)
+  - [Processes](#processes)
 - [Postgres](#postgres)
   - [Postgres Observability Tools](#postgres-observability-tools)
   - [Online](#online)
@@ -35,10 +37,12 @@ description: ""
   - [Audit and Security](#audit-and-security)
   - [Migrations](#migrations)
   - [High Availability](#high-availability)
+- [Automation / DevOps](#devops)
+  - 123
 
 ## Docs
 
-TODO
+ - [Как PostgreSQL может сделать больно, когда не ожидаешь — Михаил Жилин](https://rutube.ru/video/fedb4d1409f5ff09a39ba130ea874479/?r=plwd)
 
 ## Linux
 
@@ -50,23 +54,63 @@ TODO
 
 ### CPU
 
-TODO
+- [perf](https://www.brendangregg.com/perf.html) + [flamegraph](https://www.brendangregg.com/flamegraphs.html)
+- [sar](https://man7.org/linux/man-pages/man1/sar.1.html) + [ksar](https://github.com/vlsi/ksar), [sargraph](https://github.com/sargraph/sargraph.github.io)
+- eBPF
 
 ### Disk (Block Devices)
 
-TODO
+- blktrace
+- ioprof
+- iostat
+- iotop
+- [sar](https://man7.org/linux/man-pages/man1/sar.1.html) + [ksar](https://github.com/vlsi/ksar), [sargraph](https://github.com/sargraph/sargraph.github.io)
+- eBPF
+- lvm
+- parted
+- multipath
 
 ### Memory
 
-TODO
+- [perf](https://www.brendangregg.com/perf.html)
+- vmstat
+- pmap
+- Valgrind
+- [sar](https://man7.org/linux/man-pages/man1/sar.1.html) + [ksar](https://github.com/vlsi/ksar), [sargraph](https://github.com/sargraph/sargraph.github.io)
+- eBPF
 
 ### Network
 
-TODO
+- tcpdump
+- wireshark
+- [sar](https://man7.org/linux/man-pages/man1/sar.1.html) + [ksar](https://github.com/vlsi/ksar), [sargraph](https://github.com/sargraph/sargraph.github.io)
+- eBPF
+
+### Debug
+
+- core-dumps ([one](https://support.postgrespro.ru/note/36), [two](https://www.pgcon.org/2014/schedule/attachments/321_pgcon2014-coredump.pdf))
+- gdb
+- strace
+- DTrace
+
+### Processes
+
+- strace
+- pidstat
+- vmstat
+- gdb
+- awk / grep / sed
 
 ### Approaches/Strategies
 
-TODO
+- Ansible + AWX
+- Jenkins
+- Terraform
+- ArgoCD
+- Docker
+- K8s
+- Python / Golang
+
 
 ## Postgres
 
