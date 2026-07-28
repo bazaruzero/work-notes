@@ -23,7 +23,6 @@ description: ""
   - [Disk (Block Devices)](#disk-block-devices)
   - [Memory](#memory)
   - [Network](#network)
-  - [Approaches/Strategies](#approachesstrategies)
   - [Debug](#debug)
   - [Processes](#processes)
 - [Postgres](#postgres)
@@ -37,8 +36,8 @@ description: ""
   - [Audit and Security](#audit-and-security)
   - [Migrations](#migrations)
   - [High Availability](#high-availability)
-- [Automation / DevOps](#devops)
-  - 123
+- [Automation](#automation)
+
 
 ## Docs
 
@@ -101,17 +100,6 @@ description: ""
 - gdb
 - awk / grep / sed
 
-### Approaches/Strategies
-
-- Ansible + AWX
-- Jenkins
-- Terraform
-- ArgoCD
-- Docker
-- K8s
-- Python / Golang
-
-
 ## Postgres
 
 ### Postgres Observability Tools
@@ -155,6 +143,16 @@ TODO
 ### High Availability
 
 TODO
+
+## Automation
+
+- Ansible + AWX
+- Jenkins
+- Terraform
+- ArgoCD
+- Docker
+- K8s
+- Python / Golang
 
 ---
 
