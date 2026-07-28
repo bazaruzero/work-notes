@@ -1,0 +1,10 @@
+drop table if exists test;
+drop table if exists test_p1;
+drop table if exists test_p2;
+drop table if exists test_p3;
+drop table if exists test_p4;
+create table test(id bigint, data text) partition by range(id);
+create index idx_test__id on test(id);
+create table test_p1 partition of test for values from (1) to (10) with (autovacuum_enabled  = off);
+create table test_p2 partition of test for values from (10) to (20) with (autovacuum_enabled  = off);
+create table test_p3 partition of test for values from (20) to (30) with (autovacuum_enabled  = off);

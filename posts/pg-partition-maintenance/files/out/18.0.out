@@ -1,0 +1,91 @@
+                                                version                                                
+-------------------------------------------------------------------------------------------------------
+ PostgreSQL 18.0 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0, 64-bit
+(1 row)
+
+psql:test_case_attach_detach.sql:4: NOTICE:  table "test" does not exist, skipping
+DROP TABLE
+psql:test_case_attach_detach.sql:5: NOTICE:  table "test_p1" does not exist, skipping
+DROP TABLE
+psql:test_case_attach_detach.sql:6: NOTICE:  table "test_p2" does not exist, skipping
+DROP TABLE
+psql:test_case_attach_detach.sql:7: NOTICE:  table "test_p3" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+                    CASE #1                    
+-----------------------------------------------
+ ATTACH: create table YYY partition of XXX ...
+(1 row)
+
+BEGIN
+CREATE TABLE
+  pid  | relation |        mode         | granted | fastpath 
+-------+----------+---------------------+---------+----------
+ 86832 | test     | AccessExclusiveLock | t       | f
+ 86832 | test_p3  | AccessExclusiveLock | t       | f
+(2 rows)
+
+ROLLBACK
+                    CASE #2                    
+-----------------------------------------------
+ ATTACH: create table YYY ++ attach separately
+(1 row)
+
+BEGIN
+CREATE TABLE
+  pid  | relation |        mode         | granted | fastpath 
+-------+----------+---------------------+---------+----------
+ 86832 | test     | AccessShareLock     | t       | t
+ 86832 | test_p3  | AccessExclusiveLock | t       | f
+(2 rows)
+
+ALTER TABLE
+  pid  | relation |           mode           | granted | fastpath 
+-------+----------+--------------------------+---------+----------
+ 86832 | test     | ShareUpdateExclusiveLock | t       | f
+ 86832 | test     | AccessShareLock          | t       | t
+ 86832 | test_p3  | AccessExclusiveLock      | t       | f
+(3 rows)
+
+ROLLBACK
+      CASE #3       
+--------------------
+ DETACH: drop table
+(1 row)
+
+BEGIN
+DROP TABLE
+  pid  | relation |        mode         | granted | fastpath 
+-------+----------+---------------------+---------+----------
+ 86832 | test     | AccessExclusiveLock | t       | f
+(1 row)
+
+ROLLBACK
+        CASE #4         
+------------------------
+ DETACH: detach ++ drop
+(1 row)
+
+BEGIN
+ALTER TABLE
+  pid  | relation |        mode         | granted | fastpath 
+-------+----------+---------------------+---------+----------
+ 86832 | test     | AccessExclusiveLock | t       | f
+ 86832 | test_p2  | AccessExclusiveLock | t       | f
+(2 rows)
+
+DROP TABLE
+  pid  | relation |        mode         | granted | fastpath 
+-------+----------+---------------------+---------+----------
+ 86832 | test     | AccessExclusiveLock | t       | f
+(1 row)
+
+ROLLBACK
+           CASE #5           
+-----------------------------
+ DETACH: detach concurrently
+(1 row)
+
+ALTER TABLE

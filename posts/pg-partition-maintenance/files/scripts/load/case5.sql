@@ -1,0 +1,1 @@
+alter table test detach partition test_p3 concurrently;
