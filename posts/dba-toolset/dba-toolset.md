@@ -34,7 +34,7 @@ description: ""
   - [Monitoring](#monitoring)
   - [Backup Restore PITR Dump WAL](#backup-restore-pitr-dump-wal)
   - [Data Corruption](#data-corruption)
-  - [Audit and Security](#audit-and-security)
+  - [Logging Audit Security](#logging-audit-security)
   - [Migrations](#migrations)
   - [High Availability](#high-availability)
   - [Prevention](#prevention)
@@ -186,21 +186,42 @@ description: ""
 - pg_resetwal
 - [dirty_hands](https://github.com/dsarafan/pg_dirty_hands)
 
-### Audit and Security
+### Logging Audit Security
 
-TODO
+- default postgres logging and all components around it (linux, patroni, etcd, corosync, pacemaker, pgbouncer, haproxy, vip-manager, etc)
+- pgaudit
+- pgbadger
+- SSL/TLS
+- passwordcheck
+
 
 ### Migrations
 
-TODO
+- liquibase
+- flyway
+- ora2pg
+- oracle_fdw + custom scripts
+- postgres_fdw
+- dblink
 
 ### High Availability
 
-TODO
+- patroni
+- corosync
+- pacemaker
+- vip-manager
+- BiHA (*PostgresPro)
+- shardman (*PostgresPro)
 
 ### Prevention
 
-- pg_index_watch
+- quarterly audit
+- capacity planning (based on database size growth reports)
+- verify backups and update its setting if necessary
+- pg_index_watch (rebuild hot indexes and drop unused)
+- partitioning planning
+- autovacuum/autoanalyze setting regular check and refresh
+- archiving
 
 ## Automation
 
