@@ -44,6 +44,7 @@ description: ""
 ## Docs
 
  - [Как PostgreSQL может сделать больно, когда не ожидаешь — Михаил Жилин](https://rutube.ru/video/fedb4d1409f5ff09a39ba130ea874479/?r=plwd)
+ - [Параллелизм в PostgreSQL: не сферический, не конь, не в вакууме](https://habr.com/ru/companies/postgrespro/articles/423685/)
 
 ## Linux
 
