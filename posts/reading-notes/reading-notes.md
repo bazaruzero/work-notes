@@ -14,6 +14,14 @@ description: ""
 
 # Reading Notes
 
+## 31.08.26 - 06.09.26
+
+- [REPACK в PostgreSQL 19: перепаковка в ядре и, как всегда, дьявол в деталях](https://habr.com/ru/articles/1072388/)
+- [Асинхронный I/O в PostgreSQL или история выходного дня](https://habr.com/ru/articles/1071134/)
+- [Конфликты при закреплении блоков (BufferPin) в PostgreSQL](https://habr.com/ru/articles/1025254/)
+- [Фитнес план для PostgreSQL своими руками: как похудеть, когда нет доступа к pg_repack и pgcompacttable](https://habr.com/ru/companies/avito/articles/1023610/)
+- [Масштабирование PostgreSQL до 800 миллионов пользователей ChatGPT](https://habr.com/ru/articles/990366/)
+
 ## 29.06.26 - 05.07.26
 
 - [О залипании процесса checkpoint и archive_timeout в Postgres](https://habr.com/ru/companies/gnivc/articles/945742/)
