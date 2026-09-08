@@ -63,6 +63,7 @@ description: ""
 - [PGConf - Дело о пропавшей производительности в PostgreSQL](https://rutube.ru/video/320c4e972c39c217d2e6eb92e3e3bd2f/?r=wd)
 - [Неклассические техники оптимизации запросов в PostgreSQL](https://youtu.be/c2a5EQ_2G58)
 - [PGConf - Коллапс в планах запросов. Достигаем и управляем](https://pgconf.ru/talk/1589419)
+- [Александр Киверин - Оптимизация PostgreSQL-запросов: все, что нужно знать на практике](https://youtu.be/mvlYrXmz2sg)
 
 ## Some SQL Tricks of an Application DBA
 
