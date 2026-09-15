@@ -14,6 +14,10 @@ description: ""
 
 # Reading Notes
 
+## 07.09.26 - 13.09.26
+
+- [Параллелизм в PostgreSQL: не сферический, не конь, не в вакууме](https://habr.com/ru/companies/postgrespro/articles/423685/)
+
 ## 31.08.26 - 06.09.26
 
 - [REPACK в PostgreSQL 19: перепаковка в ядре и, как всегда, дьявол в деталях](https://habr.com/ru/articles/1072388/)
