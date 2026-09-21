@@ -14,6 +14,11 @@ description: ""
 
 # Reading Notes
 
+## 14.09.26 - 20.09.26
+
+- [Oracle → PostgreSQL без даунтайма: как мы перевозили терабайт банковской базы и где всё ломалось](https://habr.com/ru/articles/1074552/)
+- [Агрессивный автовакуум —  ужасный to prevent wraparound, зачем он нужен и как держать его в узде](https://habr.com/ru/companies/tbank/articles/919982/)
+
 ## 07.09.26 - 13.09.26
 
 - [Параллелизм в PostgreSQL: не сферический, не конь, не в вакууме](https://habr.com/ru/companies/postgrespro/articles/423685/)
