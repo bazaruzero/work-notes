@@ -14,6 +14,11 @@ description: ""
 
 # Reading Notes
 
+## 21.09.26 - 27.09.26
+
+- [Как подсунуть PostgreSQL чужую статистику. Переносим планы выполнения из продакшн](https://habr.com/ru/companies/tantor/articles/1044730/)
+- [PG18 preserves planner statistics on upgrade — even from PG14](https://postgres.ai/blog/20260324-pg18-stats-upgrade-across-versions)
+
 ## 14.09.26 - 20.09.26
 
 - [Oracle → PostgreSQL без даунтайма: как мы перевозили терабайт банковской базы и где всё ломалось](https://habr.com/ru/articles/1074552/)
