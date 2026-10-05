@@ -14,6 +14,11 @@ description: ""
 
 # Reading Notes
 
+## 28.09.26 - 04.10.26
+
+- [SPQR - наше опенсорс-решение для горизонтального масштабирования Postgres](https://habr.com/ru/companies/yandex/articles/968468/)
+- [SPQR в финтехе: реальная миграция на шардированную PostgreSQL-инсталляцию](https://habr.com/ru/companies/yandex_cloud_and_infra/articles/1020208/)
+
 ## 21.09.26 - 27.09.26
 
 - [Как подсунуть PostgreSQL чужую статистику. Переносим планы выполнения из продакшн](https://habr.com/ru/companies/tantor/articles/1044730/)
