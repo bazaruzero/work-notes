@@ -32,6 +32,7 @@
 ## Latest posts
 
 <!-- AUTO:LATEST:BEGIN -->
+- 2026-10-08 — [Vacuum Freeze Notes](posts/vacuum-freeze-notes/vacuum-freeze-notes.md)
 - 2026-07-22 — [Partition Maintenance](posts/pg-partition-maintenance/pg-partition-maintenance.md)
 - 2026-07-21 — [Oracle Database in Docker](posts/oracle-db-in-docker/oracle-db-in-docker.md)
 - 2026-07-20 — [pgBouncer Mechanics Overview](posts/pgbouncer-mechanics/pgbouncer-mechanics.md)
