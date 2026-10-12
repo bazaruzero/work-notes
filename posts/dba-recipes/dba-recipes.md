@@ -3,7 +3,7 @@
 title: "DBA Recipes"
 slug: dba-recipes
 created: 2026-07-08
-updated: 2026-07-08
+updated: 2026-10-12
 author: admin
 categories: []
 tags: []
@@ -30,6 +30,7 @@ description: ""
   - [DELETE from one table affects another](#delete-from-one-table-affects-another)
   - [Consider additional abstractions in the database](#consider-additional-abstractions-in-the-database)
   - [About UUID](#about-uuid)
+  - [AI Notes](#ai-notes)
 - [Wait Events](#wait-events)
   - [LWLock:BufferMapping](#lwlockbuffermapping)
   - [LWLock:BufferContent](#lwlockbuffercontent)
@@ -152,6 +153,402 @@ How to make a **table read-only** in Postgres? You can revoke write permissions 
 In short, due to their random nature, UUIDs can cause a large number of blocks to be read. This happens because the logical order of values in the index does not match (or correlates poorly with) the physical order in the table ([pg_stats.correlation](https://www.postgresql.org/docs/current/view-pg-stats.html)).
 
 Details: [one](https://andyatkinson.com/avoid-uuid-version-4-primary-keys), [two](https://www.cybertec-postgresql.com/en/unexpected-downsides-of-uuid-keys-in-postgresql/), [three](https://habr.com/ru/companies/tensor/articles/989032/).
+
+### AI Notes
+
+#### Avoid applying functions to indexed columns
+
+When a `WHERE` predicate filters on a column that has a plain B-tree index, do not apply a function to that column in the predicate. The planner can no longer match the predicate against the indexed raw values, so the index is ignored and the query falls back to a sequential scan.
+
+##### Example
+
+The `app_user` table has a `registered_at` column of type `TIMESTAMPTZ` and the index `idx_app_user_registered_at`:
+
+```sql
+-- Index created earlier; registered_at is TIMESTAMPTZ
+CREATE INDEX idx_app_user_registered_at
+ON app_user (registered_at);
+```
+
+**Incorrect**
+
+```sql
+-- idx_app_user_registered_at is ignored: DATE(registered_at) cannot be
+-- matched against the values stored in the index
+SELECT *
+FROM app_user
+WHERE DATE(registered_at) = '2025-06-30';
+```
+
+**Correct**
+
+```sql
+-- idx_app_user_registered_at is used: the predicate is a range scan
+SELECT *
+FROM app_user
+WHERE registered_at >= '2025-06-30 00:00:00'
+  AND registered_at <  '2025-07-01 00:00:00';
+```
+
+> Note: if the predicate cannot be rewritten, an expression index on the function result would be an option — but only for `IMMUTABLE` functions. `DATE(timestamptz)` depends on the session time zone and therefore cannot be indexed at all, which makes the range predicate the only correct fix for `TIMESTAMPTZ` columns.
+
+#### Do not use DISTINCT to mask a poorly written JOIN
+
+Do not use `DISTINCT` to "fix" a `JOIN` that returns duplicate rows when the underlying data contains no duplicates. `DISTINCT` adds an extra sort/hash step and hides the real problem: a join that produces more rows than the answer requires.
+
+##### Example
+
+Tables `customer` and `sales_order`. The task is to list every customer that has at least one order; obviously, the result must not contain duplicates.
+
+```sql
+CREATE TABLE customer (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE sales_order (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES customer (id) ON DELETE CASCADE,
+    order_date TIMESTAMPTZ NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    total_amount NUMERIC(10, 2) NOT NULL
+);
+```
+
+**Incorrect**
+
+One customer can place many orders, so the join returns the same customer once per order; `DISTINCT` is then used to collapse the duplicates back — the wrong tool for the job:
+
+```sql
+SELECT DISTINCT c.name
+FROM customer c
+JOIN sales_order o ON o.customer_id = c.id;
+```
+
+**Correct**
+
+```sql
+-- Semi-join: every matching customer is returned at most once,
+-- and probing orders can stop at the first match
+SELECT c.name
+FROM customer c
+WHERE EXISTS (
+    SELECT 1
+    FROM sales_order o
+    WHERE o.customer_id = c.id
+);
+```
+
+`IN (SELECT customer_id FROM sales_order)` is an equivalent alternative; `EXISTS` just states the intent more explicitly.
+
+#### 3. Do not use SERIAL and BIGSERIAL
+
+`SERIAL` and `BIGSERIAL` are not real column types: PostgreSQL silently creates a separate sequence and wires the column `DEFAULT` to `nextval()`, which makes the table depend on that sequence.
+
+- A role that was granted only `INSERT` on the table still cannot insert rows: `nextval()` also requires `USAGE` on the underlying sequence, and `GRANT INSERT` does not grant it.
+- `CREATE TABLE ... (LIKE ... INCLUDING ALL)` copies the `DEFAULT nextval(...)` clause, so the copy silently depends on the original table's sequence and blocks dropping the original table (unless `CASCADE` is used).
+
+Use identity columns instead.
+
+##### Example
+
+**Incorrect**
+
+```sql
+CREATE TABLE task (
+    id SERIAL PRIMARY KEY
+);
+```
+
+**Correct**
+
+```sql
+CREATE TABLE task (
+    id INT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY
+);
+```
+
+For an identity column, the backing sequence is owned by the column itself: `INSERT` privileges on the table are sufficient, and `LIKE ... INCLUDING IDENTITY` creates a new, separate sequence for the copy. Use `BIGINT` wherever `BIGSERIAL` would have been used, and prefer `GENERATED ALWAYS AS IDENTITY` when manual id values must be rejected.
+
+#### Prefer EXISTS over IN subqueries
+
+Deeply nested subqueries hurt readability and can hurt performance. Express set membership with `EXISTS` (a semi-join) rather than `IN (subquery)` — and use `NOT EXISTS` instead of `NOT IN` whenever the columns involved are nullable: a single `NULL` in the subquery result makes `NOT IN` return no rows at all.
+
+> Note: since PostgreSQL 8.4 the planner plans `IN (SELECT ...)` and a correlated `EXISTS` as the same semi-join, so read performance is usually identical. The recommendation still matters for `NOT IN` vs `NOT EXISTS` (NULL semantics), for clarity, and for portability.
+
+##### Example
+
+The `rule_id` column of `pricing_rule_attribute` references `pricing_rule.id`.
+
+**Incorrect**
+
+```sql
+SELECT *
+FROM pricing_rule_attribute a
+WHERE a.rule_id IN (SELECT r.id FROM pricing_rule r);
+```
+
+**Correct**
+
+```sql
+SELECT *
+FROM pricing_rule_attribute a
+WHERE EXISTS (
+    SELECT 1
+    FROM pricing_rule r
+    WHERE r.id = a.rule_id
+);
+```
+
+Index the foreign key column — see section 6.
+
+#### 5. Use GIN indexes for composite values
+
+GIN index structures are designed for indexing composite values such as arrays, `JSONB`, and full-text search data. They provide efficient search inside complex data types.
+
+##### Example
+
+```sql
+CREATE TABLE IF NOT EXISTS feature_config (
+    id UUID PRIMARY KEY,
+    code TEXT NOT NULL,
+    settings JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by TEXT NOT NULL
+);
+```
+
+**Correct**
+
+```sql
+CREATE INDEX idx_feature_config_settings
+ON feature_config USING GIN (settings);
+```
+
+A typical query served by this index:
+
+```sql
+-- JSONB containment check
+SELECT id, code
+FROM feature_config
+WHERE settings @> '{"notifications": {"email": true}}';
+```
+
+> Note: GIN indexes speed up reads but add write and maintenance overhead. For pure containment queries on `JSONB`, the `jsonb_path_ops` operator class produces a smaller and often faster index: `USING GIN (settings jsonb_path_ops)`.
+
+#### Create indexes for JOIN columns
+
+When queries join tables on a column, that column should be indexed. The primary-key side of the join is already covered by the PK index; the foreign-key side needs an explicit index.
+
+Using the `customer` / `sales_order` tables from section 2:
+
+**Incorrect (no index on the join column)**
+
+```sql
+SELECT o.id, o.order_date, o.total_amount, c.name
+FROM sales_order o
+JOIN customer c ON o.customer_id = c.id;
+```
+
+**Correct**
+
+```sql
+CREATE INDEX idx_sales_order_customer_id
+ON sales_order (customer_id);
+
+SELECT o.id, o.order_date, o.total_amount, c.name
+FROM sales_order o
+JOIN customer c ON o.customer_id = c.id;
+```
+
+> Note: an index on the foreign key column also avoids full scans of the child table whenever rows in the parent table are updated or deleted.
+
+#### Use an exact value instead of LIKE
+
+Do not use the `LIKE` operator when the exact value or identifier is known.
+
+**Incorrect**
+
+```sql
+SELECT id, value
+FROM reference_value
+WHERE value LIKE 'COMMERC%';
+```
+
+**Correct**
+
+```sql
+SELECT id, value
+FROM reference_value
+WHERE value = 'COMMERCIAL';
+
+-- or, when the key is known:
+SELECT id, value
+FROM reference_value
+WHERE id = 15;
+```
+
+> Note: a left-anchored pattern (`LIKE 'COMMERC%'`) can itself use a B-tree index (with the `text_pattern_ops` operator class or a C collation). Still, when the exact value is known, equality is always the cheapest and clearest option.
+
+#### Create multicolumn indexes for multi-column filters
+
+When queries filter by several columns, a single composite index is usually more efficient than separate single-column indexes.
+
+```sql
+CREATE TABLE document (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    code VARCHAR(50) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Incorrect**
+
+```sql
+CREATE INDEX idx_document_code ON document (code);
+CREATE INDEX idx_document_created_at ON document (created_at);
+
+SELECT *
+FROM document
+WHERE code = 'COMMERCIAL'
+  AND created_at > '2025-12-12 06:00:00+03';
+```
+
+**Correct**
+
+```sql
+CREATE INDEX idx_document_code_created_at
+ON document (code, created_at);
+
+SELECT *
+FROM document
+WHERE code = 'COMMERCIAL'
+  AND created_at > '2025-12-12 06:00:00+03';
+```
+
+> Notes:
+> - Order the columns deliberately: equality columns first, range columns last. With `(code, created_at)` the planner can satisfy both predicates from a single index scan.
+> - PostgreSQL can combine the two single-column indexes via a Bitmap AND, but that is more expensive than scanning one composite index.
+> - Keep `idx_document_created_at` only if some queries filter by `created_at` alone; drop indexes that nothing uses anymore.
+
+#### Select only the columns you need
+
+When reading a table, select only the columns the caller actually needs. Do not use `SELECT *`: it transfers and deserializes unnecessary data, wastes I/O, memory, and network bandwidth, breaks code when columns are added or reordered, and prevents index-only scans that could avoid table visits altogether.
+
+**Incorrect**
+
+```sql
+SELECT *
+FROM app_config;
+```
+
+**Correct**
+
+```sql
+SELECT group_code, code, user_id, settings
+FROM app_config;
+```
+
+#### Use materialized views for frequent aggregations
+
+When a query with `GROUP BY` and aggregate functions runs often and must respond quickly, create a materialized view. This is especially effective for reports and dashboards that can rely on precomputed results.
+
+**Source query (runs slowly on every call)**
+
+```sql
+SELECT region, category, SUM(sales_amount) AS total_sales
+FROM sale
+WHERE sale_date >= '2026-04-01'
+GROUP BY region, category;
+```
+
+**Correct**
+
+```sql
+CREATE MATERIALIZED VIEW sales_summary AS
+SELECT region, category, SUM(sales_amount) AS total_sales
+FROM sale
+WHERE sale_date >= '2026-04-01'
+GROUP BY region, category;
+
+-- Fast retrieval from precomputed data
+SELECT region, category, total_sales
+FROM sales_summary;
+```
+
+**Refreshing the materialized view**
+
+```sql
+REFRESH MATERIALIZED VIEW sales_summary;
+```
+
+> Notes:
+> - A materialized view holds a snapshot: it does not track changes to the source tables and must be refreshed on a schedule or on demand.
+> - `REFRESH MATERIALIZED VIEW CONCURRENTLY` avoids locking out readers during the refresh, but requires a unique index on the view (e.g. `CREATE UNIQUE INDEX ON sales_summary (region, category)`).
+> - Alternatively, since PostgreSQL 9.3, a plain view with the same definition inlined into the outer query can be sufficient — prefer it when data freshness matters more than query cost.
+
+#### Prefer CTEs over derived tables (subqueries in FROM)
+
+Deeply nested subqueries are a bad practice: they hurt readability and, in complex queries, can hurt performance. Instead of stacking subqueries in `FROM`, use a `WITH` (CTE) pipeline so each step has a name and the final `WHERE` applies to the CTE output.
+
+**Incorrect**
+
+```sql
+SELECT code, cnt
+FROM (
+    SELECT a.code, v.user_id, COUNT(v.group_code) AS cnt
+    FROM pricing_rule_attribute a
+    JOIN reference_value v ON v.attribute_id = a.id
+    GROUP BY v.id, a.code
+) t
+WHERE code = 'ROLE';
+```
+
+**Correct**
+
+```sql
+WITH role_counts AS (
+    SELECT a.code, v.user_id, COUNT(v.group_code) AS cnt
+    FROM pricing_rule_attribute a
+    JOIN reference_value v ON v.attribute_id = a.id
+    GROUP BY v.id, a.code
+)
+SELECT code, cnt
+FROM role_counts
+WHERE code = 'ROLE';
+```
+
+> Note: `count` is a reserved word and a function name — always alias it (`AS cnt`) to keep the outer query unambiguous.
+
+#### Prefer text and varchar over varchar(n) and char(n)
+
+Do not use `varchar(n)` and `char(n)` for string data. `char(n)` pads every value with spaces up to length `n`, so shorter strings still occupy the same storage. `varchar(n)` does not pad, but the length limit itself is largely a PostgreSQL-only constraint that complicates widening the column later.
+
+Use `text` or `varchar` without a length instead — they are fully equivalent in PostgreSQL. Enforce business limits with `CHECK (char_length(col) <= n)` constraints when needed.
+
+##### Example
+
+**Incorrect**
+
+```sql
+CREATE TABLE message (
+    subject VARCHAR(50),
+    body CHAR(50)
+);
+```
+
+**Correct**
+
+```sql
+CREATE TABLE message (
+    subject TEXT,
+    body TEXT
+);
+```
+
+> Note: a limit still makes sense when the value is constrained by an external system (e.g. `VARCHAR(2)` for an ISO country code) — but that is a data-modeling decision, not a storage consideration.
 
 ## Wait Events
 
