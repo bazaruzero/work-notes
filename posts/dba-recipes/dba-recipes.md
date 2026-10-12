@@ -31,6 +31,7 @@ description: ""
   - [Consider additional abstractions in the database](#consider-additional-abstractions-in-the-database)
   - [About UUID](#about-uuid)
   - [AI Notes](#ai-notes)
+  - [Functional index as workaround for LIKE query](#functional-index-as-workaround-for-like-query)
 - [Wait Events](#wait-events)
   - [LWLock:BufferMapping](#lwlockbuffermapping)
   - [LWLock:BufferContent](#lwlockbuffercontent)
@@ -550,6 +551,96 @@ CREATE TABLE message (
 ```
 
 > Note: a limit still makes sense when the value is constrained by an external system (e.g. `VARCHAR(2)` for an ISO country code) — but that is a data-modeling decision, not a storage consideration.
+
+### Functional index as workaround for LIKE query
+
+In some cases, a functional index can be one of the possible solutions to resolve LIKE query issues. A query rewrite is also required.
+
+Example:
+
+```sql
+-----
+CREATE TABLE demo (s text NOT NULL);
+
+-----
+INSERT INTO demo
+SELECT repeat('1', 30) || lpad((g % 20)::text, 2, '0') || '/' || g
+FROM generate_series(1, 1000000) g;
+
+-----
+ANALYZE demo;
+
+-----
+CREATE INDEX idx_demo_plain ON demo (s text_pattern_ops);
+
+-----
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT t.k
+FROM unnest(ARRAY[
+    '11111111111111111111111111111110',
+    '11111111111111111111111111111111',
+    '11111111111111111111111111111112',
+    '11111111111111111111111111111113',
+    '11111111111111111111111111111114',
+    '11111111111111111111111111111199'
+]::text[]) AS t(k)
+WHERE EXISTS (
+    SELECT 1 FROM demo d WHERE d.s LIKE t.k || '%'
+);
+
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Semi Join  (cost=0.43..183798.49 rows=1 width=32) (actual time=305.837..1493.055 rows=5 loops=1)
+   Join Filter: (d.s ~~ (t.k || '%'::text))
+   Rows Removed by Join Filter: 4000000
+   Buffers: shared hit=7146, temp read=18271 written=6091
+   I/O Timings: temp read=48.359 write=35.147
+   ->  Function Scan on unnest t  (cost=0.00..0.06 rows=6 width=32) (actual time=0.005..0.014 rows=6 loops=1)
+   ->  Materialize  (cost=0.42..42233.43 rows=1000000 width=39) (actual time=0.019..121.902 rows=666668 loops=6)
+         Buffers: shared hit=7146, temp read=18271 written=6091
+         I/O Timings: temp read=48.359 write=35.147
+         ->  Index Only Scan using idx_demo_plain on demo d  (cost=0.42..29420.42 rows=1000000 width=39) (actual time=0.039..138.466 rows=1000000 loops=1)
+               Heap Fetches: 0
+               Buffers: shared hit=7146
+ Planning:
+   Buffers: shared hit=1
+ Planning Time: 0.154 ms
+ Execution Time: 1498.510 ms
+
+-----
+CREATE INDEX idx_demo_prefix32 ON demo (substring(s, 1, 32) text_pattern_ops);
+
+-----
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT t.k
+FROM unnest(ARRAY[
+    '11111111111111111111111111111110',
+    '11111111111111111111111111111111',
+    '11111111111111111111111111111112',
+    '11111111111111111111111111111113',
+    '11111111111111111111111111111114',
+    '11111111111111111111111111111199'
+]::text[]) AS t(k)
+WHERE EXISTS (
+    SELECT 1 FROM demo d WHERE substring(d.s, 1, 32) = t.k
+);
+
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Semi Join  (cost=0.43..6.12 rows=3 width=32) (actual time=0.071..0.186 rows=5 loops=1)
+   Buffers: shared hit=12 read=11
+   I/O Timings: shared read=0.101
+   ->  Function Scan on unnest t  (cost=0.00..0.06 rows=6 width=32) (actual time=0.005..0.006 rows=6 loops=1)
+   ->  Index Scan using idx_demo_prefix32 on demo d  (cost=0.42..2899.26 rows=5000 width=39) (actual time=0.029..0.029 rows=1 loops=6)
+         Index Cond: ("substring"(s, 1, 32) = t.k)
+         Buffers: shared hit=12 read=11
+         I/O Timings: shared read=0.101
+ Planning:
+   Buffers: shared hit=20 read=1
+   I/O Timings: shared read=0.041
+ Planning Time: 0.388 ms
+ Execution Time: 0.230 ms
+```
 
 ## Wait Events
 
