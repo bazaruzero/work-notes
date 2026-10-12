@@ -14,6 +14,12 @@ description: ""
 
 # Reading Notes
 
+## 05.10.26 - 09.10.26
+
+- [Zero-downtime Postgres major upgrades](https://postgres.ai/products/postgres-ai-zdu)
+- [Почему COALESCE ломает план PostgreSQL и как научить планировщик считать его селективность?](https://habr.com/ru/companies/tantor/articles/1090882/)
+- [Параллельное (конкурентное) создание индексов на секционированных таблицах](https://habr.com/ru/articles/1090908/)
+
 ## 28.09.26 - 04.10.26
 
 - [SPQR - наше опенсорс-решение для горизонтального масштабирования Postgres](https://habr.com/ru/companies/yandex/articles/968468/)
