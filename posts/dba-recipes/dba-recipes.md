@@ -54,6 +54,7 @@ description: ""
 
 ## Useful Docs
 
+- [Don't Do This - PostgreSQL wiki](https://wiki.postgresql.org/wiki/Don't_Do_This)
 - [Some SQL Tricks of an Application DBA](https://hakibenita.com/sql-tricks-application-dba)
 - [Habr PostgreSQL Antipatterns](https://habr.com/ru/companies/tensor/articles/968720/)
 - [PostgreSQL Query Optimization by Henrietta Dombrovskaya, Boris Novikov, Anna Bailliekova (Apress, 2021)](https://github.com/Apress/postgresql-query-optimization)
