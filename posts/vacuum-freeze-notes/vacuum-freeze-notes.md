@@ -26,8 +26,9 @@ description: "About autovacuum thresholds and freeze mode."
 
 ## Docs
 
-- [source example 1](https://example1.com)
-- [source example 2](https://example2.com)
+- [Egor Rogov / PostgreSQL 14 Internals / 7.2 Tuple Freezing and Visibility Rules](https://edu.postgrespro.com/postgresql_internals-14_en.pdf)
+- [Агрессивный автовакуум —  ужасный to prevent wraparound, зачем он нужен и как держать его в узде](https://habr.com/ru/companies/tbank/articles/919982/)
+- [PostgreSQL 18 Vacuuming Improvements Explained](https://techcommunity.microsoft.com/blog/adforpostgresql/postgresql-18-vacuuming-improvements-explained/4459484)
 
 ## Environment
 
