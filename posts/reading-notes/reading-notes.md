@@ -14,6 +14,12 @@ description: ""
 
 # Reading Notes
 
+## 12.10.26 - 18.10.26
+
+- [PostgreSQL Antipatterns: уникальные идентификаторы](https://habr.com/ru/companies/tensor/articles/515786/)
+- [DBA: перенос значений SEQUENCE между базами PostgreSQL](https://habr.com/ru/companies/tensor/articles/483424/)
+- [DBA: вычищаем клон-записи из таблицы без PK](https://habr.com/ru/companies/tensor/articles/481352/)
+
 ## 05.10.26 - 09.10.26
 
 - [Zero-downtime Postgres major upgrades](https://postgres.ai/products/postgres-ai-zdu)
