@@ -32,6 +32,7 @@ description: ""
   - [About UUID](#about-uuid)
   - [AI Notes](#ai-notes)
   - [Functional index as workaround for LIKE query](#functional-index-as-workaround-for-like-query)
+  - [OpenAI PostgreSQL Scaling Experience](#openai-postgresql-scaling-experience)
 - [Wait Events](#wait-events)
   - [LWLock:BufferMapping](#lwlockbuffermapping)
   - [LWLock:BufferContent](#lwlockbuffercontent)
@@ -641,6 +642,84 @@ WHERE EXISTS (
  Planning Time: 0.388 ms
  Execution Time: 0.230 ms
 ```
+
+### OpenAI PostgreSQL Scaling Experience
+
+[Source](https://openai.com/index/scaling-postgresql/)
+
+#### 1. Write amplification from MVCC
+
+Problem: MVCC copies the whole row on every UPDATE (even a single field), causing write amplification and read amplification (dead tuples must be scanned). Leads to table/index bloat, heavier index maintenance, and complex autovacuum tuning.
+
+Solution: Move shardable write-heavy workloads to a sharded system (Azure Cosmos DB, update-in-place model); optimize application logic to reduce unnecessary writes (fix redundant-write bugs, lazy writes, strict rate limits on backfills). No new tables are allowed in the existing PostgreSQL deployment — new workloads default to the sharded system.
+
+#### 2. Single primary is a SPOF and cannot scale writes horizontally
+
+Problem: All writes go through one primary; a sudden write spike can overwhelm it and degrade ChatGPT/API. The primary is also a single point of failure — if it goes down, the whole service is affected.
+
+Solution:
+- Minimize load on the primary (both reads and writes); route reads to replicas, except reads that are part of a write transaction — keep those efficient and avoid slow queries on the primary.
+- Run the primary in HA mode with a hot standby; fast promotion on failure/maintenance.
+- Deploy multiple replicas per region with capacity headroom, so one replica failure does not cause a regional outage.
+- Offload read-only critical traffic from the primary → failures no longer qualify as SEV-0 because reads remain available.
+
+#### 3. Expensive queries (e.g. 12-table JOINs) caused SEVs
+
+Problem: A handful of high-cost queries — e.g. a 12-table JOIN — consumed large amounts of CPU and caused SEV events when their traffic spiked. Many such queries are produced by ORMs. Long-running idle queries also block autovacuum.
+
+Solution:
+- Continuously optimize high-cost queries; avoid complex multi-table joins.
+- When joins are unavoidable, consider decomposing the query and moving complex join logic to the application layer.
+- Carefully review ORM-generated SQL.
+- Set timeouts such as idle_in_transaction_session_timeout to prevent idle queries from blocking autovacuum.
+
+#### 4. Noisy-neighbor workloads on shared instances
+
+Problem: Certain requests consume a disproportionate share of resources on a PostgreSQL instance and degrade other workloads on the same instance (e.g. a new feature shipping an inefficient query).
+
+Solution: Isolate workloads onto dedicated instances; split high- and low-priority queries into separate instances; apply the same strategy across products/services so one product's actions don't affect another's performance or reliability.
+
+#### 5. Connection storms and connection exhaustion
+
+Problem: Each instance has a max connection limit (5000 on Azure PostgreSQL). Connection storms have previously exhausted all available connections.
+
+Solution:
+- Deploy PgBouncer with statement-level or transaction-level pooling; reuse connections aggressively.
+- Reduces connection setup latency: average connect time dropped to the 5–50 ms range.
+- Co-locate the proxy, client applications, and replicas in the same region to minimize network overhead and connection hold time.
+- Tune PgBouncer carefully — idle timeouts are critical to avoid connection exhaustion.
+
+#### 6. Cache-miss storms flooding PostgreSQL
+
+Problem: A sudden drop in cache hit ratio sends a burst of read requests directly to PostgreSQL, saturating it and slowing user queries.
+
+Solution: Implement cache locking / cache lease: when many clients miss the same key, only one acquires the lock and fetches from PostgreSQL to refresh the cache; the rest wait for the refreshed cache instead of hitting the DB concurrently. This significantly cuts redundant DB reads and protects against cascading load spikes.
+
+#### 7. WAL fan-out to many replicas
+
+Problem: The primary must stream WAL to every replica. With many replicas this grows network and CPU load on the primary; you cannot add replicas indefinitely without overloading the primary.
+
+Solution: Work with Azure PostgreSQL on cascading replication — intermediate replicas relay WAL to downstream replicas. Goal: scale to 100+ replicas without overloading the primary. Adds operational complexity (especially failover); currently in testing.
+
+#### 8. Traffic spikes, retry storms, and resource exhaustion
+
+Problem: Traffic bursts on a specific endpoint, spikes of expensive queries, or retry storms can quickly exhaust CPU, I/O, and connections, causing widespread degradation.
+
+Solution:
+- Apply multi-layer rate limiting at the application, connection-pool, proxy, and query layers.
+- Avoid too-short retry intervals to prevent retry storms.
+- Enhance the ORM layer to support rate limiting and, when necessary, block specific query digests entirely. This targeted load shedding lets the system recover quickly from sudden spikes of expensive queries.
+
+#### 9. Schema changes can trigger full table rewrites
+
+Problem: Even a small schema change (e.g. changing a column type) can trigger a full table rewrite, which is dangerous at this scale.
+
+Solution:
+- Only allow lightweight schema changes that do not trigger a rewrite (e.g. adding/removing certain columns).
+- Enforce a 5-second timeout on schema changes.
+- Allow concurrent index create/drop.
+- Restrict schema changes to existing tables; new features that need new tables must use the sharded system (Cosmos DB), not PostgreSQL.
+- For column backfills, apply strict rate limiting — the process may take over a week, but it avoids any production impact.
 
 ## Wait Events
 
