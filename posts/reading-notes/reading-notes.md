@@ -14,6 +14,13 @@ description: ""
 
 # Reading Notes
 
+## 19.10.26 - 25.10.26
+
+- [How to Fix What You Can't Kill: Undead PostgreSQL queries](https://engineering.zalando.com/posts/2015/04/how-to-fix-what-you-cant-kill-undead-postgresql-queries.html)
+- [Revisiting CPU Silent Data Corruptions in Modern Datacenters](https://cacm.acm.org/research/revisiting-cpu-silent-data-corruptions-in-modern-datacenters/)
+- [Почему сверхбыстрый COMMIT опасен для СУБД и как проверить надёжность сохранения данных](https://habr.com/ru/companies/postgrespro/articles/1086788/)
+- [Настройка HAProxy для автоматического определения ролей экземпляров PostgreSQL и защиты от split brain](https://habr.com/ru/companies/tantor/articles/1092218/)
+
 ## 12.10.26 - 18.10.26
 
 - [PostgreSQL Antipatterns: уникальные идентификаторы](https://habr.com/ru/companies/tensor/articles/515786/)
