@@ -14,6 +14,10 @@ description: ""
 
 # Reading Notes
 
+## 02.11.26 - 06.11.26
+
+- [Записки оптимизатора 1С (ч.21). Idle in transaction в Postgres. Влияние на производительность 1С. Как бороться?](https://habr.com/ru/companies/softpoint/articles/1101748/)
+
 ## 19.10.26 - 25.10.26
 
 - [How to Fix What You Can't Kill: Undead PostgreSQL queries](https://engineering.zalando.com/posts/2015/04/how-to-fix-what-you-cant-kill-undead-postgresql-queries.html)
